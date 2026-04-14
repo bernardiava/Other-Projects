@@ -1,0 +1,23 @@
+# Core Data Science
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Visualization
+plotly>=5.18.0
+streamlit>=1.30.0
+
+# Financial Data
+yfinance>=0.2.30
+
+# Time Series & Forecasting
+statsmodels>=0.14.0
+arch>=6.3.0
+
+# Deep Learning
+tensorflow>=2.15.0
+keras>=2.15.0
+
+# Optimization
+joblib>=1.3.0
