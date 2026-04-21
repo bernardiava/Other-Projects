@@ -37,10 +37,42 @@ st.markdown("""
 
 @st.cache_data
 def get_data(tickers, start, end):
-    data = yf.download(tickers, start=start, end=end, progress=False)['Adj Close']
-    if isinstance(data, pd.Series):
-        data = data.to_frame()
-    return data.dropna()
+    """Download and process stock data with MultiIndex handling"""
+    try:
+        data = yf.download(tickers, start=start, end=end, progress=False)
+        
+        # Handle MultiIndex columns (new yfinance format)
+        if isinstance(data.columns, pd.MultiIndex):
+            # Extract Adj Close for all tickers
+            if 'Adj Close' in data.columns.get_level_values(0):
+                data = data['Adj Close']
+            elif 'Close' in data.columns.get_level_values(0):
+                data = data['Close']
+            else:
+                # Fallback: try to find any price column
+                price_cols = [col for col in data.columns.get_level_values(0) 
+                             if col in ['Adj Close', 'Close', 'Price']]
+                if price_cols:
+                    data = data[price_cols[0]]
+                else:
+                    data = data.iloc[:, 0]  # Take first column as fallback
+        else:
+            # Old format: single index
+            if 'Adj Close' in data.columns:
+                data = data['Adj Close']
+            elif 'Close' in data.columns:
+                data = data['Close']
+            else:
+                data = data.iloc[:, 0]
+        
+        # Drop NaN values and forward fill
+        data = data.dropna(how='all')
+        data = data.ffill()
+        
+        return data
+    except Exception as e:
+        st.error(f"Error downloading data: {str(e)}")
+        return pd.DataFrame()
 
 def calculate_factors(df):
     """Calculate Value, Momentum, Quality, Volatility factors"""
