@@ -767,7 +767,7 @@ def main():
                 return "background-color: #fff3cd; color: #856404"
             return ""
         
-        schedule_display = schedule_df.style.applymap(color_status, subset=["Status"])
+        schedule_display = schedule_df.style.map(color_status, subset=["Status"])
         st.dataframe(schedule_display, use_container_width=True, hide_index=True)
         
         st.markdown("---")
@@ -1104,7 +1104,7 @@ def main():
                 return "background-color: #d4edda; color: #155724"
             return ""
         
-        dq_display = dq_issues.style.applymap(color_severity, subset=["Severity"])
+        dq_display = dq_issues.style.map(color_severity, subset=["Severity"])
         st.dataframe(dq_display, use_container_width=True, hide_index=True)
         
         st.markdown("---")
