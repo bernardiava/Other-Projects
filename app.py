@@ -534,7 +534,7 @@ def main():
                 y="Total Cost ($M)",
                 title="Portfolio Exposure by Country ($M)",
                 color="Total Cost ($M)",
-                color_continuous_scale=px.colors.sequential.Golden
+                color_continuous_scale=px.colors.sequential.YlOrBr
             )
             country_bar.update_layout(
                 yaxis_title="Total Cost ($M)",
