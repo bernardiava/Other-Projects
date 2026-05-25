@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
-from pandas_datareader import wb
+import requests
 import yfinance as yf
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import warnings
@@ -22,11 +22,33 @@ st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Ec
 # ==========================================
 @st.cache_data(ttl=86400)  # Cache for 1 day
 def load_worldbank_data(indicator, country_codes, start_year=2010, end_year=2024):
-    """Fetch real data from World Bank API"""
+    """Fetch real data from World Bank API using direct HTTP requests"""
     try:
-        df = wb.download(indicator=indicator, country=country_codes, start=start_year, end=end_year)
-        df = df.reset_index()
-        # Clean and pivot
+        # Build URL for World Bank API v2
+        countries = "+".join(country_codes)
+        url = f"https://api.worldbank.org/v2/country/{countries}/indicator/{indicator}?date={start_year}:{end_year}&format=json&per_page=500"
+        
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        if len(data) < 2 or not data[1]:
+            return pd.DataFrame()
+        
+        # Parse the data
+        records = []
+        for item in data[1]:
+            records.append({
+                'country': item['country']['value'],
+                'year': int(item['date']),
+                indicator: item['value'] if item['value'] is not None else np.nan
+            })
+        
+        df = pd.DataFrame(records)
+        if df.empty:
+            return pd.DataFrame()
+        
+        # Pivot to get years as index and countries as columns
         df = df.pivot(index='year', columns='country', values=indicator)
         return df
     except Exception as e:
