@@ -193,13 +193,16 @@ if not fiscal_df.empty and not ca_df.empty:
         latest_ca = combined['Current Account (% of GDP)'].iloc[-1]
         forecast_ca = forecast.iloc[-1]
         
+        # Get the latest year (handle both int and datetime index)
+        latest_year = combined.index[-1] if isinstance(combined.index[-1], int) else combined.index[-1].year
+        
         growth_status = "STRONG" if latest_gdp_growth > 5 else "MODERATE" if latest_gdp_growth > 3 else "WEAK"
         status_ca = "Surplus" if latest_ca > 0 else "Deficit"
         
         st.markdown(f"""
-        - **Economic Performance ({combined.index[-1].year})**: GDP grew by **{latest_gdp_growth:.2f}%** (**{growth_status}** growth).
-        - **External Position ({combined.index[-1].year})**: Current Account is in **{status_ca}** at **{latest_ca:.2f}% of GDP**.
-        - **4-Quarter Outlook**: Current Account is forecasted to move to **{forecast_ca:.2f}%** over the next year.
+        - **Economic Performance ({latest_year})**: GDP grew by **{latest_gdp_growth:.2f}%** (**{growth_status}** growth).
+        - **External Position ({latest_year})**: Current Account is in **{status_ca}** at **{latest_ca:.2f}% of GDP**.
+        - **4-Year Outlook**: Current Account is forecasted to move to **{forecast_ca:.2f}%** over the next 4 years.
         - **Market View**: Bond yields reflect market expectations for economic growth and monetary policy.
         """)
         
