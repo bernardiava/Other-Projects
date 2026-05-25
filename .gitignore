@@ -1,1 +1,1 @@
-Nothing needs to be added to .gitignore since only a Python source file (.py) was added, which is not a build artifact, dependency, or temporary file.
+Nothing should be ignored since only a Python source file (.py) was added.
