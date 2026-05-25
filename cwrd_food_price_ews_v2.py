@@ -1,7 +1,3 @@
---- cwrd_food_price_ews_v2.py (原始)
-
-
-+++ cwrd_food_price_ews_v2.py (修改后)
 import streamlit as st
 import pandas as pd
 import requests
@@ -29,35 +25,35 @@ def get_world_bank_commodities():
     URL: https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx
     """
     url = "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx"
-
+    
     try:
         response = requests.get(url, timeout=20)
         response.raise_for_status()
-
+        
         # Load Excel into memory
         excel_file = pd.ExcelFile(io.BytesIO(response.content))
-
+        
         # Read first sheet
         df = pd.read_excel(excel_file, sheet_name=0)
-
+        
         # Clean column names (remove extra spaces, lowercase for matching)
         df.columns = df.columns.str.strip().str.lower()
-
+        
         # Identify date column (usually 'month' or 'date')
         date_cols = [c for c in df.columns if 'month' in c or 'date' in c]
         if not date_cols:
             raise ValueError("No date column found in Excel")
         date_col = date_cols[0]
-
+        
         # Convert date
         df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
         df = df.dropna(subset=[date_col]).sort_values(date_col)
-
+        
         # Filter for last 5 years to keep it relevant for ARIMA
         df = df[df[date_col] >= '2019-01-01']
-
+        
         return df, date_col
-
+        
     except Exception as e:
         st.error(f"Failed to load World Bank Excel data: {e}")
         st.info("Generating fallback simulation data...")
@@ -78,7 +74,7 @@ def get_wb_inflation(country_code):
     url = f"http://api.worldbank.org/v2/country/{country_code}/indicator/FP.CPI.TOTL.ZG?date=2020:2026&format=json&per_page=1000"
     try:
         r = requests.get(url, timeout=10).json()
-        if len(r) < 2:
+        if len(r) < 2: 
             return pd.DataFrame()
         df = pd.DataFrame(r[1])
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
@@ -98,12 +94,12 @@ countries = {
 
 with st.spinner("Fetching World Bank Commodity Data (Excel) & Inflation API..."):
     raw_df, date_col = get_world_bank_commodities()
-
+    
     # Map Excel columns to our variables (Case-insensitive matching)
     # Common column names in WB Excel: 'wheat', 'natural_gas', 'crude_oil'
     wheat_col = next((c for c in raw_df.columns if 'wheat' in c), None)
     gas_col = next((c for c in raw_df.columns if 'natural gas' in c or 'gas' in c), None)
-
+    
     if wheat_col and gas_col:
         wheat_df = raw_df[[date_col, wheat_col]].rename(columns={date_col: 'date', wheat_col: 'value'})
         gas_df = raw_df[[date_col, gas_col]].rename(columns={date_col: 'date', gas_col: 'value'})
@@ -160,7 +156,7 @@ with col2:
     else:
         pred_3m = latest
         change = 0
-
+    
     st.metric("Current Wheat", f"${latest:.0f}/mt")
     st.metric("3-Month Forecast", f"${pred_3m:.0f}/mt", f"{change:+.1f}%")
     st.info("**Model**: ARIMA(1,1,1) selected via AIC. Data source: World Bank Commodity Markets Outlook Excel.")
