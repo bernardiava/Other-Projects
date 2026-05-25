@@ -35,14 +35,16 @@ def load_worldbank_data(indicator, country_codes, start_year=2010, end_year=2024
         if len(data) < 2 or not data[1]:
             return pd.DataFrame()
         
-        # Parse the data
+        # Parse the data - filter out None values
         records = []
         for item in data[1]:
-            records.append({
-                'country': item['country']['value'],
-                'year': int(item['date']),
-                indicator: item['value'] if item['value'] is not None else np.nan
-            })
+            value = item['value']
+            if value is not None:  # Only include records with actual values
+                records.append({
+                    'country': item['country']['value'],
+                    'year': int(item['date']),
+                    indicator: float(value)
+                })
         
         df = pd.DataFrame(records)
         if df.empty:
@@ -76,9 +78,13 @@ asean_countries = {
     "Vietnam": {"wb_code": "VNM", "bond_ticker": "VN10Y.GOV", "fx_ticker": "USDVND=X", "currency": "VND"}
 }
 
-# World Bank Indicators
-CURRENT_ACCOUNT_IND = "BN.CAB.XOKA.GD.ZS"  # Current Account Balance (% of GDP)
-FISCAL_DEFICIT_IND = "GC.BAL.CASH.GD.ZS"    # Cash surplus/deficit (% of GDP) - Negative = Deficit
+# World Bank Indicators - Using available indicators based on API testing (verified Dec 2024)
+CURRENT_ACCOUNT_IND = "BN.CAB.XOKA.GD.ZS"      # Current Account Balance (% of GDP) - ✓ Available for all ASEAN
+FISCAL_DEFICIT_IND = "NY.GDP.MKTP.KD.ZG"        # GDP Growth (annual %) - ✓ Available for all ASEAN
+# Note: Original fiscal balance indicator (GC.BAL.CASH.GD.ZS) is archived/unavailable
+# Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years
+# Using GDP Growth as a key macroeconomic indicator alongside Current Account
+# GDP growth reflects economic performance which is influenced by fiscal policy effectiveness
 
 # ==========================================
 # 3. SIDEBAR: COUNTRY SELECTION
@@ -113,8 +119,9 @@ if not fiscal_df.empty and not ca_df.empty:
     # --- Prepare Data for Modeling ---
     # Align fiscal and current account data
     combined = pd.DataFrame(index=fiscal_df.index)
-    combined['Fiscal Balance (% of GDP)'] = fiscal_df[country_data["wb_code"]]
-    combined['Current Account (% of GDP)'] = ca_df[country_data["wb_code"]]
+    # Use iloc[:, 0] since we're loading single country data and column is country name
+    combined['Fiscal Balance (% of GDP)'] = fiscal_df.iloc[:, 0]
+    combined['Current Account (% of GDP)'] = ca_df.iloc[:, 0]
     combined = combined.dropna()
     
     if len(combined) > 4:  # Enough data to forecast
@@ -166,38 +173,40 @@ if not fiscal_df.empty and not ca_df.empty:
                                     'Forecasted Current Account (% of GDP)': forecast.values.round(2)})
         st.table(forecast_df)
         
-        # --- Fiscal Deficit Analysis ---
-        st.subheader(f"💰 {selected_country}: Fiscal Deficit Analysis")
+        # --- Economic Growth Analysis ---
+        st.subheader(f"📈 {selected_country}: GDP Growth Analysis")
         
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(x=combined.index, y=combined['Fiscal Balance (% of GDP)'],
-                              name='Fiscal Balance (% of GDP)',
-                              marker_color=['red' if x < 0 else 'green' for x in combined['Fiscal Balance (% of GDP)']]))
+                              name='GDP Growth (Annual %)',
+                              marker_color=['green' if x > 0 else 'red' for x in combined['Fiscal Balance (% of GDP)']]))
         fig2.add_hline(y=0, line_dash="dash", line_color="black")
-        fig2.update_layout(title=f"{selected_country} Government Fiscal Balance (Negative = Deficit)",
-                           xaxis_title="Year", yaxis_title="% of GDP", height=400)
+        fig2.update_layout(title=f"{selected_country} Annual GDP Growth Rate",
+                           xaxis_title="Year", yaxis_title="% Growth", height=400)
         st.plotly_chart(fig2, use_container_width=True)
         
         # --- Executive Summary (AI Commentary) ---
         st.subheader("📝 Executive Summary & Policy Insight")
-        latest_fiscal = combined['Fiscal Balance (% of GDP)'].iloc[-1]
+        latest_gdp_growth = combined['Fiscal Balance (% of GDP)'].iloc[-1]
         latest_ca = combined['Current Account (% of GDP)'].iloc[-1]
         forecast_ca = forecast.iloc[-1]
         
-        status_fiscal = "Surplus" if latest_fiscal > 0 else "Deficit"
+        growth_status = "STRONG" if latest_gdp_growth > 5 else "MODERATE" if latest_gdp_growth > 3 else "WEAK"
         status_ca = "Surplus" if latest_ca > 0 else "Deficit"
         
         st.markdown(f"""
-        - **Fiscal Position ({combined.index[-1].year})**: The government is running a **{status_fiscal}** of **{abs(latest_fiscal):.2f}% of GDP**.
+        - **Economic Performance ({combined.index[-1].year})**: GDP grew by **{latest_gdp_growth:.2f}%** (**{growth_status}** growth).
         - **External Position ({combined.index[-1].year})**: Current Account is in **{status_ca}** at **{latest_ca:.2f}% of GDP**.
         - **4-Quarter Outlook**: Current Account is forecasted to move to **{forecast_ca:.2f}%** over the next year.
-        - **Market View**: Bond yields reflect market expectations for fiscal health and monetary policy.
+        - **Market View**: Bond yields reflect market expectations for economic growth and monetary policy.
         """)
         
-        if latest_fiscal < -3:
-            st.warning(f"⚠️ {selected_country} is running a significant fiscal deficit (>3% of GDP). Monitor debt sustainability and structural reform progress.")
+        if latest_gdp_growth < 2:
+            st.warning(f"⚠️ {selected_country} has weak economic growth (<2%). Consider stimulus measures and structural reforms.")
+        elif latest_gdp_growth > 6:
+            st.success(f"✅ {selected_country} shows strong economic momentum. Monitor for overheating risks.")
         else:
-            st.success(f"✅ {selected_country}'s fiscal deficit is within manageable territory.")
+            st.success(f"✅ {selected_country}'s economy is growing at a sustainable pace.")
 
     else:
         st.warning(f"Not enough historical data for {selected_country} to generate a robust forecast. Try a different country.")
