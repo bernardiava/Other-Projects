@@ -43,7 +43,11 @@ def get_commodity_price(commodity):
         r_json = r.json()
         if 'source' in r_json and 'data' in r_json['source']:
             df = pd.DataFrame(r_json['source']['data'])
-            df['date'] = pd.to_datetime(pd.PeriodIndex(df['date'], freq='M').to_timestamp())
+            # Handle date parsing robustly
+            try:
+                df['date'] = pd.to_datetime(df['date'], format='%Y-%m')
+            except:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
             df['value'] = pd.to_numeric(df['value'])
             return df.sort_values('date').dropna()
     except Exception as e:
@@ -71,7 +75,7 @@ def get_commodity_price(commodity):
     
     # Last resort: Return sample data for demo purposes
     st.info("Using sample historical data for demonstration.")
-    dates = pd.date_range(start='2020-01-01', periods=48, freq='M')
+    dates = pd.date_range(start='2020-01-01', periods=48, freq='ME')
     if 'WHEAT' in commodity.upper():
         values = [250 + i*2 + (i%12)*5 for i in range(48)]  # Simulated wheat prices
     else:
