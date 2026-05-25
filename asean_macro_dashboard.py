@@ -193,8 +193,8 @@ if not fiscal_df.empty and not ca_df.empty:
         latest_ca = combined['Current Account (% of GDP)'].iloc[-1]
         forecast_ca = forecast.iloc[-1]
         
-        # Get the latest year (handle both int and datetime index)
-        latest_year = combined.index[-1] if isinstance(combined.index[-1], int) else combined.index[-1].year
+        # Get the latest year (handle both int/numpy int and datetime index)
+        latest_year = int(combined.index[-1]) if isinstance(combined.index[-1], (int, np.integer)) else combined.index[-1].year
         
         growth_status = "STRONG" if latest_gdp_growth > 5 else "MODERATE" if latest_gdp_growth > 3 else "WEAK"
         status_ca = "Surplus" if latest_ca > 0 else "Deficit"
