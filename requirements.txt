@@ -28,3 +28,10 @@ plotly
 folium
 streamlit-folium
 statsmodels
+streamlit
+pandas
+numpy
+plotly
+pandas-datareader
+yfinance
+statsmodels
