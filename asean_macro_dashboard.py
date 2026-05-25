@@ -140,7 +140,9 @@ if not fiscal_df.empty and not ca_df.empty:
         # Make forecast
         forecast_steps = 4
         forecast = model_fit.forecast(steps=forecast_steps)
-        forecast_index = pd.date_range(start=combined.index[-1], periods=forecast_steps+1, freq='Q')[1:]
+        # Create forecast index as future years (since data is annual)
+        last_year = int(combined.index[-1])
+        forecast_index = [last_year + i for i in range(1, forecast_steps + 1)]
         
         # Create plot
         fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -169,7 +171,7 @@ if not fiscal_df.empty and not ca_df.empty:
         st.plotly_chart(fig, use_container_width=True)
         
         # Display Forecast Table
-        forecast_df = pd.DataFrame({'Quarter': forecast_index.strftime('%Y-Q%q'), 
+        forecast_df = pd.DataFrame({'Year': forecast_index, 
                                     'Forecasted Current Account (% of GDP)': forecast.values.round(2)})
         st.table(forecast_df)
         
