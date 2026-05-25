@@ -19,14 +19,18 @@ st.caption("Monitoring wheat-energy-inflation transmission for Central & West As
 def get_wb_data(country_code, indicator):
     url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/{indicator}?date=2020:2026&format=json&per_page=1000"
     try:
-        r = requests.get(url, timeout=10).json()
-        if len(r) < 2: return pd.DataFrame()
-        df = pd.DataFrame(r[1])
+        r = requests.get(url, timeout=10)
+        if r.status_code != 200:
+            raise Exception(f"API returned status {r.status_code}")
+        r_json = r.json()
+        if len(r_json) < 2:
+            return pd.DataFrame()
+        df = pd.DataFrame(r_json[1])
         df['date'] = pd.to_datetime(df['date'])
         df['value'] = pd.to_numeric(df['value'])
         return df.dropna().sort_values('date')[['date', 'value']]
     except Exception as e:
-        st.error(f"Error fetching WB data: {e}")
+        st.warning(f"Error fetching WB data for {country_code}: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=3600)
@@ -105,6 +109,13 @@ with st.spinner("Fetching real-time World Bank data..."):
     gas_df = get_gas_prices() # EU Gas
     inflation_data = {name: get_wb_data(v["code"], "FP.CPI.TOTL.ZG") for name, v in countries.items()}
 
+# Validate data loaded properly
+if wheat_df.empty or len(wheat_df) < 2:
+    st.error("Failed to load wheat price data. Please try again later.")
+    st.stop()
+if gas_df.empty:
+    st.warning("Gas price data unavailable. Using fallback data.")
+
 # --- 4. ARIMA FORECAST - SENJATA EKONOM ADB ---
 st.subheader("1. Wheat Price Forecast: ARIMA(1,1,1)")
 col1, col2 = st.columns([2,1])
@@ -154,12 +165,14 @@ for name, df in inflation_data.items():
         else:
             risk_color[name] = "green"
             risk_text[name] = f"🟢 LOW: Inflation {latest_inf:.1f}%"
+    else:
+        # Handle countries with no data
+        risk_color[name] = "gray"
+        risk_text[name] = "⚪ No data available"
 
 # Bikin peta
 m = folium.Map(location=[40, 65], zoom_start=4, tiles="CartoDB positron")
 
-# GeoJSON Central Asia - free source
-geojson_url = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json "
 for name, data in countries.items():
     folium.CircleMarker(
         location=data["coords"],
