@@ -19,3 +19,17 @@ requests>=2.31.0
 
 # Optimization
 joblib>=1.3.0
+
+streamlit
+pandas
+plotly
+folium
+streamlit-folium
+statsmodels
+streamlit
+pandas
+numpy
+plotly
+pandas-datareader
+yfinance
+statsmodels
