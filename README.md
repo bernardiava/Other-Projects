@@ -158,4 +158,4 @@ For questions or suggestions, please open an issue in the repository.
 
 **Built with ❤️ for ASEAN Economic Analysis**
 
-*Last Updated: 2024*
+*Last Updated: 2026*
