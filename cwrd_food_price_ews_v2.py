@@ -71,7 +71,7 @@ def generate_fallback_data():
 @st.cache_data(ttl=3600)
 def get_wb_inflation(country_code):
     """Fetches inflation data from WB API (still needed as Excel doesn't have country CPI)"""
-    url = f"http://api.worldbank.org/v2/country/{country_code}/indicator/FP.CPI.TOTL.ZG?date=2020:2026&format=json&per_page=1000"
+    url = f"http://api.worldbank.org/v2/country/{country_code}/indicator/FP.CPI.TOTL.ZG?date=2020:2027&format=json&per_page=1000"
     try:
         r = requests.get(url, timeout=10).json()
         if len(r) < 2: 

@@ -17,7 +17,7 @@ st.caption("Monitoring wheat-energy-inflation transmission for Central & West As
 # --- 2. AMBIL REAL DATA - NO KEY, NO LOGIN ---
 @st.cache_data(ttl=3600)
 def get_wb_data(country_code, indicator):
-    url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/{indicator}?date=2020:2026&format=json&per_page=1000"
+    url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/{indicator}?date=2020:2027&format=json&per_page=1000"
     try:
         r = requests.get(url, timeout=10)
         if r.status_code != 200:
@@ -42,7 +42,7 @@ def get_commodity_prices():
     # Try World Bank Commodity Prices API (source 15 - Global Economic Monitor)
     try:
         # Alternative: Use monthly data from WB development indicators
-        url = "https://api.worldbank.org/v2/country/all/indicator/PX.FOOD.INDEX?date=2020:2025&format=json"
+        url = "https://api.worldbank.org/v2/country/all/indicator/PX.FOOD.INDEX?date=2020:2027&format=json"
         r = requests.get(url, timeout=10).json()
         if len(r) >= 2 and r[1]:
             df = pd.DataFrame(r[1])
@@ -74,7 +74,7 @@ def get_gas_prices():
     Using fallback sample data if API fails.
     """
     try:
-        url = "https://api.worldbank.org/v2/country/all/indicator/PX.NG.RUS?date=2020:2025&format=json"
+        url = "https://api.worldbank.org/v2/country/all/indicator/PX.NG.RUS?date=2020:2027&format=json"
         r = requests.get(url, timeout=10).json()
         if len(r) >= 2 and r[1]:
             df = pd.DataFrame(r[1])
