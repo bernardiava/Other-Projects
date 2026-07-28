@@ -53,16 +53,17 @@ def get_commodity_prices():
         pass
     
     # Fallback: Generate realistic sample data based on historical wheat prices
-    # This simulates real wheat price data (USD/mt) from 2020-2025
-    dates = pd.date_range(start='2020-01-01', end='2025-12-01', freq='MS')
-    # Realistic wheat price pattern: 2020 low (~180), 2022 spike (~400), 2023-2025 stabilization (~250)
+    # This simulates real wheat price data (USD/mt) from 2020-2026
+    dates = pd.date_range(start='2020-01-01', end='2026-12-01', freq='MS')
+    # Realistic wheat price pattern: 2020 low (~180), 2022 spike (~400), 2023-2026 stabilization (~250)
     values = [
         180, 185, 190, 195, 200, 210,  # 2020
         220, 240, 260, 280, 300, 320,  # 2021
         380, 420, 400, 380, 360, 340,  # 2022 peak
         300, 280, 270, 265, 260, 255,  # 2023
         250, 248, 245, 243, 240, 238,  # 2024
-        235, 233, 230, 228, 225, 223   # 2025
+        235, 233, 230, 228, 225, 223,  # 2025
+        220, 218, 215, 213, 210, 208   # 2026
     ]
     return pd.DataFrame({'date': dates[:len(values)], 'value': values})
 
@@ -84,15 +85,16 @@ def get_gas_prices():
         pass
     
     # Fallback: Generate realistic EU gas price data (USD/mmbtu)
-    dates = pd.date_range(start='2020-01-01', end='2025-12-01', freq='MS')
-    # Realistic gas price pattern: 2020 low (~5), 2022 spike (~50), 2023-2025 normalization (~12)
+    dates = pd.date_range(start='2020-01-01', end='2026-12-01', freq='MS')
+    # Realistic gas price pattern: 2020 low (~5), 2022 spike (~50), 2023-2026 normalization (~12)
     values = [
         5, 5, 4, 3, 3, 4,  # 2020
         5, 6, 8, 10, 12, 15,  # 2021
         25, 35, 45, 50, 40, 30,  # 2022 peak
         20, 18, 15, 13, 12, 11,  # 2023
         10, 10, 11, 12, 12, 13,  # 2024
-        13, 12, 12, 11, 11, 10   # 2025
+        13, 12, 12, 11, 11, 10,  # 2025
+        10, 9, 9, 9, 8, 8   # 2026
     ]
     return pd.DataFrame({'date': dates[:len(values)], 'value': values})
 
