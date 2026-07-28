@@ -109,7 +109,40 @@ with st.spinner(f"Loading real macroeconomic data for {selected_country}..."):
     
     # Load Market Sentiment Data
     bond_series = get_market_data(country_data["bond_ticker"])
-    fx_series = get_market_data(country_data["fx_ticker"])
+    fx_series = get_market_data(country_data["fx_ticker"], period="max")
+    
+    # Get FX prediction using SARIMA model
+    fx_prediction_df = None
+    if fx_series is not None and not fx_series.empty and len(fx_series) > 10:
+        try:
+            # Fit SARIMA model on FX data
+            fx_model = SARIMAX(fx_series.dropna(), 
+                              order=(1,1,1), 
+                              seasonal_order=(1,1,1,12),
+                              simple_differencing=False)
+            fx_model_fit = fx_model.fit(disp=False)
+            
+            # Forecast next 12 months (monthly data)
+            fx_forecast_steps = 12
+            fx_forecast = fx_model_fit.forecast(steps=fx_forecast_steps)
+            
+            # Create forecast index (monthly dates)
+            last_date = fx_series.index[-1]
+            if hasattr(last_date, 'to_period'):
+                # If it's a Period index
+                forecast_dates = pd.date_range(start=last_date.to_timestamp() + pd.DateOffset(months=1), 
+                                              periods=fx_forecast_steps, freq='M')
+            else:
+                forecast_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), 
+                                              periods=fx_forecast_steps, freq='M')
+            
+            fx_prediction_df = pd.DataFrame({
+                'Date': forecast_dates,
+                'Predicted Exchange Rate': fx_forecast.values
+            })
+        except Exception as e:
+            st.warning(f"Could not generate FX prediction: {e}")
+            fx_prediction_df = None
 
 # ==========================================
 # 5. VISUALIZATION & FORECASTING
@@ -216,6 +249,55 @@ if not fiscal_df.empty and not ca_df.empty:
             st.success(f"✅ {selected_country} shows strong economic momentum. Monitor for overheating risks.")
         else:
             st.success(f"✅ {selected_country}'s economy is growing at a sustainable pace.")
+    
+    # --- Rupiah/Exchange Rate Prediction Section ---
+    if fx_prediction_df is not None and selected_country == "Indonesia":
+        st.subheader(f"💱 {selected_country}: Rupiah (USD/IDR) Exchange Rate Forecast")
+        st.markdown("**12-Month Forward Prediction using SARIMA Model**")
+        
+        # Create FX prediction plot
+        fig_fx = make_subplots(specs=[[{"secondary_y": False}]])
+        
+        # Historical FX data
+        fig_fx.add_trace(go.Scatter(x=fx_series.index, y=fx_series.values,
+                                    mode='lines', name='Historical USD/IDR',
+                                    line=dict(color='blue', width=2)), secondary_y=False)
+        
+        # Forecast FX data
+        fig_fx.add_trace(go.Scatter(x=fx_prediction_df['Date'], 
+                                    y=fx_prediction_df['Predicted Exchange Rate'],
+                                    mode='lines+markers', name='Forecast (Next 12 Months)',
+                                    line=dict(color='red', width=2, dash='dot')), secondary_y=False)
+        
+        fig_fx.update_layout(title=f"{selected_country} Rupiah Exchange Rate Forecast (USD/IDR)",
+                            xaxis_title="Date", yaxis_title="Exchange Rate (IDR per USD)",
+                            hovermode="x unified", height=500)
+        st.plotly_chart(fig_fx, use_container_width=True)
+        
+        # Display FX Forecast Table with yearly summary
+        st.markdown("**Yearly Average Forecast Summary:**")
+        fx_prediction_df['Year'] = fx_prediction_df['Date'].dt.year
+        yearly_forecast = fx_prediction_df.groupby('Year')['Predicted Exchange Rate'].mean().reset_index()
+        yearly_forecast.columns = ['Year', 'Avg Predicted Exchange Rate (IDR/USD)']
+        st.table(yearly_forecast.round(2))
+        
+        # FX Commentary
+        latest_fx = fx_series.iloc[-1]
+        avg_forecast_fx = fx_prediction_df['Predicted Exchange Rate'].mean()
+        fx_trend = "DEPRECIATING" if avg_forecast_fx > latest_fx else "APPRECIATING"
+        
+        st.markdown(f"""
+        - **Current Exchange Rate**: **{latest_fx:.2f} IDR/USD**
+        - **12-Month Avg Forecast**: **{avg_forecast_fx:.2f} IDR/USD**
+        - **Trend Outlook**: Rupiah is expected to be **{fx_trend}** against USD over the next year.
+        """)
+        
+        if avg_forecast_fx > latest_fx * 1.05:
+            st.warning(f"⚠️ Significant rupiah depreciation expected. Consider hedging strategies for USD exposure.")
+        elif avg_forecast_fx < latest_fx * 0.95:
+            st.success(f"✅ Rupiah showing strength. Favorable for import costs and inflation control.")
+        else:
+            st.info(f"ℹ️ Rupiah expected to remain relatively stable with moderate volatility.")
 
     else:
         st.warning(f"Not enough historical data for {selected_country} to generate a robust forecast. Try a different country.")
