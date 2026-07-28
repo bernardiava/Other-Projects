@@ -61,7 +61,7 @@ def get_world_bank_commodities():
 
 def generate_fallback_data():
     """Generates realistic fallback data if Excel download fails"""
-    dates = pd.date_range(start='2020-01-01', end='2024-12-01', freq='ME')
+    dates = pd.date_range(start='2020-01-01', end='2025-12-01', freq='ME')
     np.random.seed(42)
     # Simulated Wheat (USD/mt) and Gas (USD/mmbtu) trends
     wheat = 200 + np.random.randn(len(dates)).cumsum() * 5 + np.linspace(0, 50, len(dates))
