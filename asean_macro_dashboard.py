@@ -132,8 +132,13 @@ with st.spinner(f"Loading real macroeconomic data for {selected_country}..."):
                 # If it's a Period index
                 forecast_dates = pd.date_range(start=last_date.to_timestamp() + pd.DateOffset(months=1), 
                                               periods=fx_forecast_steps, freq='M')
-            else:
+            elif isinstance(last_date, pd.Timestamp):
+                # If it's already a Timestamp
                 forecast_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), 
+                                              periods=fx_forecast_steps, freq='M')
+            else:
+                # Fallback for other date types
+                forecast_dates = pd.date_range(start=pd.Timestamp(last_date) + pd.DateOffset(months=1), 
                                               periods=fx_forecast_steps, freq='M')
             
             fx_prediction_df = pd.DataFrame({
