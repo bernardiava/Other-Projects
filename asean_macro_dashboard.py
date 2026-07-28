@@ -21,7 +21,7 @@ st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Ec
 # 1. DATA FETCHING FUNCTIONS (Real Data)
 # ==========================================
 @st.cache_data(ttl=86400)  # Cache for 1 day
-def load_worldbank_data(indicator, country_codes, start_year=2010, end_year=2024):
+def load_worldbank_data(indicator, country_codes, start_year=2010, end_year=2027):
     """Fetch real data from World Bank API using direct HTTP requests"""
     try:
         # Build URL for World Bank API v2
