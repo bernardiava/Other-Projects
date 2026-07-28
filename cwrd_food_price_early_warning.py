@@ -65,7 +65,7 @@ def get_world_bank_commodities():
 
 def generate_fallback_data():
     """Generates realistic fallback data if Excel download fails"""
-    dates = pd.date_range(start='2020-01-01', end='2024-12-01', freq='ME')
+    dates = pd.date_range(start='2020-01-01', end='2025-12-01', freq='ME')
     np.random.seed(42)
     # Simulated Wheat (USD/mt) and Gas (USD/mmbtu) trends
     wheat = 200 + np.random.randn(len(dates)).cumsum() * 5 + np.linspace(0, 50, len(dates))
@@ -75,7 +75,7 @@ def generate_fallback_data():
 @st.cache_data(ttl=3600)
 def get_wb_inflation(country_code):
     """Fetches inflation data from WB API (still needed as Excel doesn't have country CPI)"""
-    url = f"http://api.worldbank.org/v2/country/{country_code}/indicator/FP.CPI.TOTL.ZG?date=2020:2026&format=json&per_page=1000"
+    url = f"http://api.worldbank.org/v2/country/{country_code}/indicator/FP.CPI.TOTL.ZG?date=2020:2027&format=json&per_page=1000"
     try:
         r = requests.get(url, timeout=10).json()
         if len(r) < 2:
