@@ -32,39 +32,53 @@ with tabs[0]:
     @st.cache_data(ttl=86400)  # Cache for 1 day
     def load_worldbank_data(indicator, country_codes, start_year=2010, end_year=2027):
         """Fetch real data from World Bank API using direct HTTP requests"""
-        try:
-            # Build URL for World Bank API v2
-            countries = "+".join(country_codes)
-            url = f"https://api.worldbank.org/v2/country/{countries}/indicator/{indicator}?date={start_year}:{end_year}&format=json&per_page=500"
-            
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            if len(data) < 2 or not data[1]:
+        import time
+        max_retries = 3
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                # Build URL for World Bank API v2
+                countries = "+".join(country_codes)
+                url = f"https://api.worldbank.org/v2/country/{countries}/indicator/{indicator}?date={start_year}:{end_year}&format=json&per_page=500"
+                
+                response = requests.get(url, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+                
+                if len(data) < 2 or not data[1]:
+                    return pd.DataFrame()
+                
+                # Parse the data - filter out None values
+                records = []
+                for item in data[1]:
+                    value = item['value']
+                    if value is not None:  # Only include records with actual values
+                        records.append({
+                            'country': item['country']['value'],
+                            'year': int(item['date']),
+                            indicator: float(value)
+                        })
+                
+                df = pd.DataFrame(records)
+                if df.empty:
+                    return pd.DataFrame()
+                
+                # Pivot to get years as index and countries as columns
+                df = df.pivot(index='year', columns='country', values=indicator)
+                return df
+            except requests.exceptions.ReadTimeout as e:
+                if attempt < max_retries - 1:
+                    st.warning(f"Attempt {attempt + 1} failed for {indicator}. Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    st.warning(f"Could not fetch {indicator} after {max_retries} attempts: {e}")
+                    return pd.DataFrame()
+            except Exception as e:
+                st.warning(f"Could not fetch {indicator}: {e}")
                 return pd.DataFrame()
-            
-            # Parse the data - filter out None values
-            records = []
-            for item in data[1]:
-                value = item['value']
-                if value is not None:  # Only include records with actual values
-                    records.append({
-                        'country': item['country']['value'],
-                        'year': int(item['date']),
-                        indicator: float(value)
-                    })
-            
-            df = pd.DataFrame(records)
-            if df.empty:
-                return pd.DataFrame()
-            
-            # Pivot to get years as index and countries as columns
-            df = df.pivot(index='year', columns='country', values=indicator)
-            return df
-        except Exception as e:
-            st.warning(f"Could not fetch {indicator}: {e}")
-            return pd.DataFrame()
+        
+        return pd.DataFrame()
     
     @st.cache_data(ttl=3600)
     def get_market_data(ticker, period="5y"):
@@ -137,18 +151,12 @@ with tabs[0]:
                 
                 # Create forecast index (monthly dates)
                 last_date = fx_series.index[-1]
-                if hasattr(last_date, 'to_period'):
-                    # If it's a Period index
-                    forecast_dates = pd.date_range(start=last_date.to_timestamp() + pd.DateOffset(months=1), 
-                                                  periods=fx_forecast_steps, freq='M')
-                elif isinstance(last_date, pd.Timestamp):
-                    # If it's already a Timestamp
-                    forecast_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), 
-                                                  periods=fx_forecast_steps, freq='M')
-                else:
-                    # Fallback for other date types
-                    forecast_dates = pd.date_range(start=pd.Timestamp(last_date) + pd.DateOffset(months=1), 
-                                                  periods=fx_forecast_steps, freq='M')
+                # Ensure last_date is a proper Timestamp
+                if not isinstance(last_date, pd.Timestamp):
+                    last_date = pd.Timestamp(last_date)
+                
+                forecast_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), 
+                                              periods=fx_forecast_steps, freq='M')
                 
                 fx_prediction_df = pd.DataFrame({
                     'Date': forecast_dates,
@@ -313,8 +321,8 @@ with tabs[0]:
             else:
                 st.info(f"ℹ️ Rupiah expected to remain relatively stable with moderate volatility.")
     
-    else:
-        st.warning(f"Not enough historical data for {selected_country} to generate a robust forecast. Try a different country.")
+    elif fx_series is not None and not fx_series.empty and len(fx_series) <= 10:
+        st.info(f"ℹ️ Not enough historical FX data for {selected_country} to generate a robust forecast. Try a different country.")
 
 # ==========================================
 # FOOTER & DATA REFRESH
