@@ -1,47 +1,35 @@
-```python
-# Compiled and build artifacts
-*.pyc
+```
+# Python
 __pycache__/
-
-# Dependencies
-.venv/
-venv/
-env/
-pip-log.txt
-pip-delete-this-directory.txt
+*.pyc
+*.pyo
+*.pyd
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
-*.swo
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
 
 # Editors
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
+
+# System files
 .DS_Store
 Thumbs.db
-
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
-
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
-.eggs/
-.installed.cfg
-*.egg
-
-# Pytest cache
-.pytest_cache/
 ```
