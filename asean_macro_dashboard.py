@@ -156,7 +156,7 @@ with tabs[0]:
                     last_date = pd.Timestamp(last_date)
                 
                 forecast_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), 
-                                              periods=fx_forecast_steps, freq='M')
+                                              periods=fx_forecast_steps, freq='ME')
                 
                 fx_prediction_df = pd.DataFrame({
                     'Date': forecast_dates,

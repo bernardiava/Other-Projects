@@ -1,31 +1,68 @@
-```
-# Python
-__pycache__/
+```python
+# Compiled and build artifacts
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.class
+*.out
+
+# Dependencies
+.venv/
+venv/
+.env
+.env.local
+*.env.*
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
-
-# Environment
-.env
-.env.local
-*.env.*
+*.swo
 
 # Editors
 .vscode/
 .idea/
 
-# Dependencies
-.venv/
-venv/
-node_modules/
+# Coverage reports
+.coverage
+coverage/
+htmlcov/
 
-# Build artifacts
+# Python specific
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.Python
+*.egg-info/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.hypothesis/
+
+# Distribution / packaging
+.Python
+*.egg
+*.tar.gz
+*.whl
 dist/
 build/
-target/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg-link
+
+# System files
+.DS_Store
+Thumbs.db
 ```
+
+Wait, I need to reconsider. The only modified file is 'asean_macro_dashboard.py' which appears to be a Python source file. There are no build artifacts, dependency directories, or temporary files in the changes provided. According to rule #6, if the change list contains only source files and no build artifacts, dependencies, or temp files, I should output an empty .gitignore.
+
+(empty)
