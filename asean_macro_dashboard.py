@@ -85,9 +85,30 @@ with tabs[0]:
         """Fetch bond yields / exchange rates as real-time economic indicators"""
         try:
             data = yf.download(ticker, period=period, progress=False)
-            return data['Close']
+            close = data['Close']
+            # Flatten MultiIndex columns (newer yfinance returns (Price, Ticker) tuples)
+            if isinstance(close.columns, pd.MultiIndex):
+                close.columns = close.columns.get_level_values(0)
+            return close.iloc[:, 0] if hasattr(close, 'columns') else close
         except:
             return pd.Series()
+
+    def make_forecastable_annual_series(series):
+        """Convert a Series indexed by plain years into one with a proper
+        annual PeriodIndex so statsmodels can generate a forecast index.
+
+        Without this, SARIMAX.forecast() raises
+        ValueError('No supported index is available.') because a plain
+        integer Index has no frequency that statsmodels can extend.
+        Missing years are filled as NaN (handled by the state-space model).
+        """
+        years = [int(getattr(y, 'year', y)) for y in series.index]
+        full_index = pd.period_range(start=str(min(years)), end=str(max(years)), freq='Y')
+        aligned = series.copy()
+        aligned.index = pd.Index(years)
+        aligned = aligned.reindex(pd.Index([p.year for p in full_index])).astype(float)
+        aligned.index = full_index
+        return aligned
     
     # ==========================================
     # 2. ASEAN COUNTRY CONFIGURATION
@@ -138,8 +159,20 @@ with tabs[0]:
         fx_prediction_df = None
         if fx_series is not None and not fx_series.empty and len(fx_series) > 10:
             try:
-                # Fit SARIMA model on FX data
-                fx_model = SARIMAX(fx_series.dropna(), 
+                fx_clean = fx_series.dropna()
+                # Ensure the index is a proper DatetimeIndex so statsmodels can
+                # extend it for forecasting (otherwise forecast() raises
+                # ValueError("No supported index is available.")).
+                if not isinstance(fx_clean.index, pd.DatetimeIndex):
+                    fx_clean.index = pd.to_datetime(fx_clean.index)
+
+                # Daily FX data cannot support a seasonal_order of (1,1,1,12)
+                # (that implies 12 observations per season, i.e. monthly data).
+                # Resample to month-end before fitting the SARIMA model.
+                fx_monthly = fx_clean.resample('ME').last().dropna()
+
+                # Fit SARIMA model on monthly FX data
+                fx_model = SARIMAX(fx_monthly, 
                                   order=(1,1,1), 
                                   seasonal_order=(1,1,1,12),
                                   simple_differencing=False)
@@ -150,7 +183,7 @@ with tabs[0]:
                 fx_forecast = fx_model_fit.forecast(steps=fx_forecast_steps)
                 
                 # Create forecast index (monthly dates)
-                last_date = fx_series.index[-1]
+                last_date = fx_monthly.index[-1]
                 # Ensure last_date is a proper Timestamp
                 if not isinstance(last_date, pd.Timestamp):
                     last_date = pd.Timestamp(last_date)
@@ -185,8 +218,12 @@ with tabs[0]:
             
             st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Quarters)")
             
-            # Fit SARIMA model
-            model = SARIMAX(combined['Current Account (% of GDP)'], 
+            # Fit SARIMA model on a proper annual PeriodIndex so the fitted
+            # model can extend the index for forecasting. A plain integer
+            # year Index has no frequency and causes statsmodels to raise
+            # ValueError("No supported index is available.") in forecast().
+            ca_series = make_forecastable_annual_series(combined['Current Account (% of GDP)'])
+            model = SARIMAX(ca_series, 
                             order=(1,1,1), 
                             seasonal_order=(1,1,1,4),
                             simple_differencing=False)
@@ -195,8 +232,8 @@ with tabs[0]:
             # Make forecast
             forecast_steps = 4
             forecast = model_fit.forecast(steps=forecast_steps)
-            # Create forecast index as future years (since data is annual)
-            last_year = int(combined.index[-1])
+            # Forecast index: next 4 years after the last historical year
+            last_year = int(combined.index[-1] if not hasattr(combined.index[-1], 'year') else combined.index[-1].year)
             forecast_index = [last_year + i for i in range(1, forecast_steps + 1)]
             
             # Create plot
