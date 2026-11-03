@@ -1,0 +1,201 @@
+From 2db422a7c88c75c970407bcff2ce86a5737b4372 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Tue, 3 Nov 2026 23:47:40 +0000
+Subject: [PATCH 6/9] Update data source keterangan (labels) in ASEAN Macro
+ Dashboard to match actual indicators
+
+- Sidebar 'Data Sources' now lists correct WB indicator codes, frequencies, caching, and both SARIMA forecast horizons (was: 'Fiscal Deficit' & 'Next 4 Quarters')
+- Header renamed 'Fiscal Deficit & Current Account Analysis' -> 'GDP Growth & Current Account Analysis'
+- Forecast subheader corrected: Next 4 Quarters -> Next 4 Years (annual data)
+- Internal column relabeled 'Fiscal Balance (% of GDP)' -> 'GDP Growth (Annual %)' (data was already NY.GDP.MKTP.KD.ZG)
+- Indicator comment block updated/verified Nov 2026 with explicit note on FISCAL_DEFICIT_IND holding GDP growth
+- README forecasting-model section updated (CA annual SARIMA + FX monthly resample details)
+- All 17 tests pass
+---
+ README.md                                     |   8 ++--
+ .../asean_macro_dashboard.cpython-312.pyc     | Bin 28848 -> 29170 bytes
+ asean_macro_dashboard.py                      |  35 ++++++++++--------
+ 3 files changed, 23 insertions(+), 20 deletions(-)
+
+diff --git a/README.md b/README.md
+index abff369..44bfa41 100644
+--- a/README.md
++++ b/README.md
+@@ -87,11 +87,9 @@ A professional Streamlit dashboard for analyzing macroeconomic indicators across
+ ### Forecasting Model
+ 
+ - **Algorithm**: SARIMAX (Seasonal AutoRegressive Integrated Moving Average with eXogenous factors)
+-- **Parameters**: 
+-  - Order: (1,1,1)
+-  - Seasonal Order: (1,1,1,4)
+-- **Forecast Horizon**: 4 years ahead
+-- **Note**: Uses annual data; quarterly indicators not available for all countries
++- **Current Account Forecast** (annual data): Order (1,1,1), Seasonal Order (1,1,1,4), horizon 4 years ahead. Data is reindexed onto a complete annual `PeriodIndex` so statsmodels can extend it out-of-sample.
++- **FX Rate Forecast** (Indonesia, USD/IDR): Daily Yahoo Finance data is resampled to month-end (`ME`) before fitting; Order (1,1,1), Seasonal Order (1,1,1,12), horizon 12 months ahead.
++- **Note**: Uses annual data for macro indicators; quarterly indicators are not available from the World Bank API for all countries.
+ 
+ ### Caching Strategy
+ 
+diff --git a/__pycache__/asean_macro_dashboard.cpython-312.pyc b/__pycache__/asean_macro_dashboard.cpython-312.pyc
+index 19a16c02e47415af841906928ce9ebe6132981e0..f95c4ffe5cea906b35b3698fec5b8971d98a7f4c 100644
+GIT binary patch
+delta 2345
+zcma)5ZA@F&8NSE&UVmT=Hi0;NBsmlam|zoF0>mT@m)Mus1Y)3oF_>}jxv@>mz0I{v
+z0-Z*)M(eaq8ts|7sw0#3v&HHfc|TC3wqZZEOw%HqA|;CUXCKnEXq!+KHEp(}JNFuQ
+zB%8F^^10`E-se5<`#$&hgWrQs{|HKcW3d!b<TI{3n7gz1M#(;~aJ}(YG+w6<gD(6h
+zy3TN1tot#A+_;3XS9ezuX%wvK)D(&e9nw)^rMO?LN8PxGu^&94#@B!rq(V(3T18?f
+zRTjONIfWOPlb{FxocYkq6;yL^ym_b!zr{9;^rF+qlku)GJNX@A$DEws?_P<9FJy<h
+zP+#b{*fp2lt;p}i<C!zKL|+Sh_=x_s3V)`*khMev;&H@f&f;78ZZLou!!kIBuNvA6
+zffH)15w92;3`5$U$2Xb%m^E6#Fy3pd?Htkkc<CBlI1Nx_&T5fIL(fd_Bdk^Qp<Xnq
+zPK707ZRzgL`_VA|iLn}-!8eQ!gHQ8l3_mcc{T7?{>wJ~?W1GFaP$d)~=M5phcozBb
+znCX~#90lVbO1_y1{FZ6Rp;bpAG)Z)0XbOch(}nkx`T820_k?sZgRMm;8$w9Xbh9Xo
+zA{n$s=i|>Qm7*($MQz^m*L0dbiu@?{U-dz9@&R)#J49;4wcQ*FlHHuS!F=JG4kge$
+zk}@*>hNX@jA(5ByFU;r6;lh0ABCaX+85FHr5+{n&=78o&fH)h#e=V*9v)F3s1TlQZ
+z;sgo2U^&c^Q`U62xd!52T1r_>Pu^Tbspe)#D7+JuGv&Ei(XFDq-=PS;ZQ5%^`4A!l
+z4vGkk;pvi(K^Pw>{gRmM`O4%bt5_$ZAN@~zKd}0Uz3==V_8zb~X<`Z<v^DOGa+{3u
+zj_ni~@4l^?te@F@WbG+CMf!QQ%mIAa_sTkfq31#sMJapn%AQIL$|c~(FPHz84kLfI
+zr@};oAolNz*7?b0xvF0EB{TV}{y@C?3|<jmC-SX*lVI5&)gcP0>!Vd2`W$_M9>)Rt
+z2ia5TpM>?JC+O)ajlNs~h$4|E<jzD9MG%PU$g2M6RdofZPh*%ogZk8bvS;%+N~2jc
+zjHWfMUVM|VhE*EBUnSG(eSp<JH3U~c#=b`5Z(3^Ex3ydH_v+U`IIGl*&~y+5@vVc4
+zo#Dd8jsoIxh)nW4^TvNLZ=x{13}2x=nRD6C;41(OW|bGN19L;4Cjk2t`BEyDZLhbK
+zFSj%|dxVq#N942;5tFcKBt1VXDo`U^VZWFX6+wy$lEdBHoW4l>b;5C3Ng&uONEaX%
+z@WDU4`a}5dV`0<G;Dn1{*FgVE0aw4r73!ODz(eqKT2VwP1-VE>PLpTTOz)s;`83z-
+z3ZCodNQNskGUI50f+VGdL<@`vk(h{J`_WjsS1UUq#AF%raY>LOqE@w6mJpnXiwTq@
+z1-zFdG196ChlP}wY=KCKCl<dtr!BVB;e>n;^0FdEgk;JMN4Vi;-v9??3C_z>DwbFz
+zImC-5NxYnbZS8qB=}3QHt&gYNmCIVvPENkj-6==mq9`cIZkUY8mn0}8;e0xgiaS*n
+z#$+YFL`tc4T}%rKF}6@JEeQ*xSz$II!t;tezsq6AQvF$3KyfJw6;a4;ch!T6irsE=
+znq9B~JKav;z?1GedV&bAy8jHa-#XE7K*v<zcSGN1j%_g=_-m6NfxY<C$qUo`7Snf+
+z(ZBA$;=jw-bBukPqAJho9#RxLpnE2;xo>KV2|q^#wwR%3C^bE*rN?yJCE3-fd%)gu
+z>}P}T4&G>67uJvFT6(@?+_W|2j1K(0X|G{&vvO*yIGnvZ{asz>SgvFIUgL}RM#G!a
+z={utfpR``ejV^2khSuBGFWxwI-EdRP9qHd3UC6awddTW(7QsVGXIa8;3z5>E9OUjo
+zJ_q@mN)Gz7MYF%74f92m-m<-r{hOFDSuTS|oRQ!w<BuPW;q!9aGQWrOy69VbI2-4+
+zv%hZeI5>}!xn1IEQTaRWV$NHy|3uGstMERsa$ZOIecQk(75)WqM>xKfe$d8KoVT0Z
+zZYxsZc6XnF<Bja+I*vSB=`T#2gX1gM$L(79@rhoR<6mH(0M5)UllW7MPL(~iddt-3
+zhR4Zr-g3i+r`^tZOAQ-dlV0s@!&{o?z2$Ts+X=2UZFp<S)NVGsE`qy=zMGuSnl^aK
+msGUbz;rKFwEjze^;DZEL8M$h;AZdo<TL{s(BWNYK%kVEYaGnhS
+
+delta 2014
+zcma)5drVVT9Pa7u?WHZ{QNdC{J>?;9MHG37c%k>g<yk<el!DZrOL=syw#7%8V@5NV
+zWe?q1GP6mtCEG$mvy3#^jLDq*<(6rrN+vGL;<D^z_6J!^G)CRdy#+U%$=0Ul-tYVU
+z&N<)rozp*l1fTo>628{!wF>gNcH_6v%)@6A(!lQ7+{+ZsR+%<dh*|F{P~{Xg1Edy(
+zqD%o4N`+_=H;CD&3OiJ$@+uSI-C#y3Hz@46q`r<+t0jJAo;`1w-6^rCCcF!WRW+a%
+z-%))IcH?PUU|3X#>cbX%pEeiPhq)&+D-dt56e~u@W9$EO6f46G*rGOrMm(fGkt&3n
+zR%V4rn^=i<hnw+Zbv0<gRm>!4!xxyXpdJ6t6ap(wi`xb|a7&!Iyi<1B^|wpeW4g#A
+z>naZd@sK16h(&v3r60ttR@#g@>@8yRGnKXwrAu-7Orz|-8$*p*BfopoL>^n!sl>ye
+zCYKh(79`+THD$UUWE%l)@(u6BS2P{@vKG{f>_kNm>O+oj|4QcJff+iM3(>U?^V*u6
+zUNk88IgtbH54&clSpBKaY3=bsB)b=<lyd(N5|I0u{Wh|4NN1+4WRGF_Z3NlK+k3hk
+z-RP7OjUf+uF6_ngx*W<D_Tl@wcAaD8JkSB$887G#%6s{xr19Q#h;P#xd@a6F*Dj|L
+zAc?o*Onnw`VqRYk-1r53F&M*PeIZR&oKfPz42U1<6UiBtB$#w^es-sHP7)>wHYKc&
+zrD}J@QcaBYAmXh}M5r6TmGA}Q7$bMpZ^W->ns6ZTHc7hvNzwyJVirPg|7XTOCkZ6u
+zcm7Aldy<P8DVeDm8keM-X(=@ywx(p^X!0)NF3FHi#v+42#zTf$;J}|6@<C(dwxJx5
+zKS)~2Ye2vsrCg;PNQfLt)lk5OUrcjn2}lr6O7}dZQz-0jh$mO!)8Z-8t~K=mMsO>U
+zf?O)kI#Y*$9-+tQDD>xPfD|KuAO{*k3W9)JNk-{Mos&j@c$rbf7{sH8GNxnLO(7@h
+zK>hfeb;so6?n!^2v7H8C;|wL+JS*GG&Nu-ak?D*sin1Xae!TH$xnt$lx&cYgPINxa
+zocR~?CUW49;RID5Zi^I|Cje-TOlQu5#C(1v;BtDPMI0J&jRYeoTc0wSTu@+f2A#0W
+zH|}?dfvSRnP-!u=`TQOP>zv*($XW%Mw|Zs~tRMILMQ;$YE|+iI8_W+C7sFoXu+Ini
+z5wFwh5@BAQ&x>I1i0DCqBFG(a4LiMV5q3I*VnA;1VmpOaHXFA3km!L!K0oAre$nL&
+z1YusAcq9n7!;W#MKPdVGk*umxU@|R>sB?N^JLEv$5Nxnm@o051D8gr}v(&K}k&D&8
+z0AnbX)L?_(cQ`l<^H{HUoOsX4k9=5@vqAY&3ck|!lB#k+RfT&T7l8q%_K(#TE~ttY
+zRq9hs$D3}dj8T<wKCNXz)%q0Gu%K#u2DPM(eBZwaj3t$yCCnyVIC#l?J{T>ryc{>5
+zTojEf##i@o%)q>9-$MLg#5DMdvfLis(YKhpYq7h3e&Fc!?$C`b6VdL_ytU)}*7FB1
+zl+7}i#Ar$Le0M0iW#TTa%s2+_DwO&c@VEP2iIynjZo;N0Z2Gb^3fm$ruJ0(urB$f)
+zOP<IUw@0IY9^5<35PaPB;9d)!KCpF?t6;e`)a42`nYHYsztURrS&Kn+b(^I~;;(Ov
+zXE}}fdLdse!CRY>SS}&u){fR%3I4i?En)c->dsnT!E%sZTC0`d5^P{tu9&`;%Q6za
+zznRTvxhndBQ7%6)*U>D`&<{7UI(CxOAC)Slwnt^0L3++v3^Z%0WacbJBWu}Co}1N@
+zwmHl8WxkS%;hi+gsWo#PFi2|VxHSZ?XXc0!mMb89PMo|Rk-~E21eY%3Dzd+d;MzDg
+WUD}X{Vfkdu93LNR;8O@*&-?|&>N`~c
+
+diff --git a/asean_macro_dashboard.py b/asean_macro_dashboard.py
+index bf3759e..1a7938f 100644
+--- a/asean_macro_dashboard.py
++++ b/asean_macro_dashboard.py
+@@ -23,7 +23,7 @@ tabs = st.tabs(["🌏 Macro Overview", "💰 WACC Proxy Calculator"])
+ # TAB 1: MACRO OVERVIEW (Existing Functionality)
+ # ==========================================
+ with tabs[0]:
+-    st.header("Fiscal Deficit & Current Account Analysis")
++    st.header("GDP Growth & Current Account Analysis")
+     st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Economist Role")
+     
+     # ==========================================
+@@ -122,13 +122,15 @@ with tabs[0]:
+         "Vietnam": {"wb_code": "VNM", "bond_ticker": "VN10Y.GOV", "fx_ticker": "USDVND=X", "currency": "VND"}
+     }
+     
+-    # World Bank Indicators - Using available indicators based on API testing (verified Dec 2024)
++    # World Bank Indicators - Using available indicators based on API testing (verified Nov 2026)
+     CURRENT_ACCOUNT_IND = "BN.CAB.XOKA.GD.ZS"      # Current Account Balance (% of GDP) - ✓ Available for all ASEAN
+     FISCAL_DEFICIT_IND = "NY.GDP.MKTP.KD.ZG"        # GDP Growth (annual %) - ✓ Available for all ASEAN
+-    # Note: Original fiscal balance indicator (GC.BAL.CASH.GD.ZS) is archived/unavailable
+-    # Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years
+-    # Using GDP Growth as a key macroeconomic indicator alongside Current Account
+-    # GDP growth reflects economic performance which is influenced by fiscal policy effectiveness
++    # Note: Original fiscal balance indicator (GC.DOD.TOTL.GD.ZS / GC.BAL.CASH.GD.ZS) is archived/unavailable.
++    # Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years.
++    # Using GDP Growth as a key macroeconomic indicator alongside Current Account.
++    # IMPORTANT: Despite the variable name FISCAL_DEFICIT_IND, this series is GDP GROWTH (annual %).
++    # It is displayed under "GDP Growth Analysis" and feeds the Executive Summary GDP commentary.
++    # GDP growth reflects economic performance which is influenced by fiscal policy effectiveness.
+     
+     # ==========================================
+     # 3. SIDEBAR: COUNTRY SELECTION
+@@ -138,10 +140,13 @@ with tabs[0]:
+     country_data = asean_countries[selected_country]
+     
+     st.sidebar.markdown("---")
+-    st.sidebar.markdown("**Data Sources:**")
+-    st.sidebar.markdown("- World Bank API (Fiscal Deficit, Current Account)")
+-    st.sidebar.markdown("- Yahoo Finance (Bond Yields, Exchange Rates)")
+-    st.sidebar.markdown("- SARIMA Model for Forecast (Next 4 Quarters)")
++    st.sidebar.markdown("**Data Sources (Sumber Data / Keterangan):**")
++    st.sidebar.markdown("- World Bank API — GDP Growth (`NY.GDP.MKTP.KD.ZG`) & Current Account (`BN.CAB.XOKA.GD.ZS`), annual, cached 24h")
++    st.sidebar.markdown("- Yahoo Finance — Bond Yields & Exchange Rates, daily, cached 1h")
++    st.sidebar.markdown("- FX Forecast: SARIMA on monthly data (next 12 months)")
++    st.sidebar.markdown("- Current Account Forecast: SARIMA on annual data (next 4 years; shown as multi-year horizon — quarterly data unavailable from World Bank)")
++    # Note: the sidebar previously said "(Fiscal Deficit, Current Account)" and "Next 4 Quarters",
++    # which no longer matches the actual data sources/labels after the indicator swap to GDP Growth.
+     
+     # ==========================================
+     # 4. MAIN DATA LOADING
+@@ -208,7 +213,7 @@ with tabs[0]:
+         # Align fiscal and current account data
+         combined = pd.DataFrame(index=fiscal_df.index)
+         # Use iloc[:, 0] since we're loading single country data and column is country name
+-        combined['Fiscal Balance (% of GDP)'] = fiscal_df.iloc[:, 0]
++        combined['GDP Growth (Annual %)'] = fiscal_df.iloc[:, 0]
+         combined['Current Account (% of GDP)'] = ca_df.iloc[:, 0]
+         combined = combined.dropna()
+         
+@@ -216,7 +221,7 @@ with tabs[0]:
+             # --- Forecast Logic (SARIMA) ---
+             # We forecast using the Current Account, as it is the target for the job description
+             
+-            st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Quarters)")
++            st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Years)")
+             
+             # Fit SARIMA model on a proper annual PeriodIndex so the fitted
+             # model can extend the index for forecasting. A plain integer
+@@ -271,9 +276,9 @@ with tabs[0]:
+             st.subheader(f"📈 {selected_country}: GDP Growth Analysis")
+             
+             fig2 = go.Figure()
+-            fig2.add_trace(go.Bar(x=combined.index, y=combined['Fiscal Balance (% of GDP)'],
++            fig2.add_trace(go.Bar(x=combined.index, y=combined['GDP Growth (Annual %)'],
+                                   name='GDP Growth (Annual %)',
+-                                  marker_color=['green' if x > 0 else 'red' for x in combined['Fiscal Balance (% of GDP)']]))
++                                  marker_color=['green' if x > 0 else 'red' for x in combined['GDP Growth (Annual %)']]))
+             fig2.add_hline(y=0, line_dash="dash", line_color="black")
+             fig2.update_layout(title=f"{selected_country} Annual GDP Growth Rate",
+                                xaxis_title="Year", yaxis_title="% Growth", height=400)
+@@ -281,7 +286,7 @@ with tabs[0]:
+             
+             # --- Executive Summary (AI Commentary) ---
+             st.subheader("📝 Executive Summary & Policy Insight")
+-            latest_gdp_growth = combined['Fiscal Balance (% of GDP)'].iloc[-1]
++            latest_gdp_growth = combined['GDP Growth (Annual %)'].iloc[-1]
+             latest_ca = combined['Current Account (% of GDP)'].iloc[-1]
+             forecast_ca = forecast.iloc[-1]
+             
+-- 
+2.39.5
+
