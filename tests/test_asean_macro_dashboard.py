@@ -243,5 +243,75 @@ class TestFXYearlyAggregation:
                'Predicted Exchange Rate' in yearly_forecast.columns
 
 
+def make_forecastable_annual_series(series):
+    """Replica of the dashboard helper: convert plain-year-indexed series to
+    an annual PeriodIndex so statsmodels can extend it for forecasting."""
+    years = [int(getattr(y, 'year', y)) for y in series.index]
+    full_index = pd.period_range(start=str(min(years)), end=str(max(years)), freq='Y')
+    aligned = series.copy()
+    aligned.index = pd.Index(years)
+    aligned = aligned.reindex(pd.Index([p.year for p in full_index])).astype(float)
+    aligned.index = full_index
+    return aligned
+
+
+class TestNoSupportedIndexFix:
+    """Regression tests for ValueError('No supported index is available.')"""
+
+    def test_plain_int_index_forecast_fails_without_fix(self):
+        """A plain integer year index cannot be extended by statsmodels."""
+        from statsmodels.tsa.statespace.sarimax import SARIMAX
+        s = pd.Series(
+            np.random.randn(12).cumsum() / 10,
+            index=pd.Index([2010, 2011, 2012, 2013, 2014, 2016,
+                            2018, 2019, 2020, 2021, 2022, 2023])
+        )
+        model = SARIMAX(s, order=(1, 1, 1), seasonal_order=(1, 1, 1, 4),
+                        simple_differencing=False).fit(disp=False)
+        with pytest.raises(ValueError, match="No supported index"):
+            model.forecast(steps=4)
+
+    def test_period_index_forecast_succeeds_with_fix(self):
+        """After converting to an annual PeriodIndex, forecast works."""
+        from statsmodels.tsa.statespace.sarimax import SARIMAX
+        s = pd.Series(
+            np.random.randn(12).cumsum() / 10,
+            index=pd.Index([2010, 2011, 2012, 2013, 2014, 2016,
+                            2018, 2019, 2020, 2021, 2022, 2023])
+        )
+        ca = make_forecastable_annual_series(s)
+        model = SARIMAX(ca, order=(1, 1, 1), seasonal_order=(1, 1, 1, 4),
+                        simple_differencing=False).fit(disp=False)
+        forecast = model.forecast(steps=4)
+        assert len(forecast) == 4
+        # Forecast periods extend beyond the last historical year (2023)
+        assert [p.year for p in forecast.index] == [2024, 2025, 2026, 2027]
+
+    def test_make_forecastable_annual_series_fills_gaps(self):
+        """Missing years become NaN entries on a complete annual grid."""
+        s = pd.Series([1.0, 2.0, 3.0], index=pd.Index([2010, 2012, 2013]))
+        out = make_forecastable_annual_series(s)
+        assert isinstance(out.index, pd.PeriodIndex)
+        assert len(out) == 4          # 2010..2013 inclusive
+        assert out.isna().sum() == 1  # 2011 gap filled as NaN
+        assert out.iloc[0] == 1.0 and out.iloc[-1] == 3.0
+
+    def test_fx_daily_resampled_to_monthly_supports_seasonal_forecast(self):
+        """Daily FX resampled to month-end allows SARIMA(1,1,1)(1,1,1,12) forecast."""
+        from statsmodels.tsa.statespace.sarimax import SARIMAX
+        rng = np.random.default_rng(42)
+        daily = pd.Series(
+            15000 + np.cumsum(rng.normal(0, 10, 800)),
+            index=pd.date_range('2024-01-01', periods=800, freq='B')
+        )
+        monthly = daily.resample('ME').last().dropna()
+        model = SARIMAX(monthly, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12),
+                        simple_differencing=False).fit(disp=False)
+        forecast = model.forecast(steps=12)
+        assert len(forecast) == 12
+        # First forecast month follows the last observed month-end
+        expected_start = monthly.index[-1] + pd.DateOffset(months=1)
+        assert forecast.index[0] == expected_start
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
