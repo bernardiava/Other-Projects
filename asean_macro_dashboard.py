@@ -14,8 +14,17 @@ warnings.filterwarnings('ignore')
 # PAGE CONFIG
 # ==========================================
 st.set_page_config(page_title="ASEAN Macro Dashboard", layout="wide")
-st.title("📊 ASEAN Macro Dashboard: Fiscal Deficit & Current Account")
-st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Economist Role")
+st.title("📊 ASEAN Macro Dashboard")
+
+# Create tabs
+tab1, tab2 = st.tabs(["📈 Fiscal & Current Account", "💰 WACC Proxy"])
+
+# ==========================================
+# TAB 1: Fiscal & Current Account Analysis
+# ==========================================
+with tab1:
+    st.header("Fiscal Deficit & Current Account Analysis")
+    st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Economist Role")
 
 # ==========================================
 # 1. DATA FETCHING FUNCTIONS (Real Data)
@@ -311,7 +320,213 @@ else:
     st.markdown("Try selecting a different country or refresh the page.")
 
 # ==========================================
-# 6. FOOTER & DATA REFRESH
+# TAB 2: WACC Proxy Calculator
+# ==========================================
+with tab2:
+    st.header("💰 WACC Proxy Calculator")
+    st.markdown("**Weighted Average Cost of Capital (WACC) Estimation for ASEAN Countries**")
+    
+    # WACC Parameters in Sidebar
+    st.sidebar.header("🔧 WACC Parameters")
+    
+    # Risk-free rate (using US 10Y Treasury as proxy)
+    risk_free_rate = st.sidebar.slider("Risk-Free Rate (%)", 0.0, 10.0, 4.5, 0.1)
+    
+    # Market risk premium
+    market_risk_premium = st.sidebar.slider("Market Risk Premium (%)", 0.0, 15.0, 6.5, 0.5)
+    
+    # Default tax rate
+    tax_rate = st.sidebar.slider("Corporate Tax Rate (%)", 0.0, 35.0, 22.0, 1.0)
+    
+    # Country-specific risk premiums
+    country_risk_premiums = {
+        "Indonesia": 3.5,
+        "Thailand": 2.0,
+        "Singapore": 0.5,
+        "Malaysia": 2.2,
+        "Philippines": 3.0,
+        "Vietnam": 4.0
+    }
+    
+    # Debt-Equity ratios (typical by country/sector)
+    default_de_ratios = {
+        "Indonesia": 0.8,
+        "Thailand": 0.7,
+        "Singapore": 0.6,
+        "Malaysia": 0.75,
+        "Philippines": 0.85,
+        "Vietnam": 1.0
+    }
+    
+    # Cost of debt spreads over risk-free
+    cost_of_debt_spreads = {
+        "Indonesia": 3.0,
+        "Thailand": 2.0,
+        "Singapore": 0.8,
+        "Malaysia": 2.2,
+        "Philippines": 2.8,
+        "Vietnam": 3.5
+    }
+    
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Country-Specific Adjustments")
+    
+    # Allow user to adjust country risk premium
+    crp = st.sidebar.slider(
+        f"{selected_country} Country Risk Premium (%)",
+        0.0, 10.0, 
+        country_risk_premiums.get(selected_country, 3.0),
+        0.5
+    )
+    
+    # Allow user to adjust D/E ratio
+    de_ratio = st.sidebar.slider(
+        f"{selected_country} Debt/Equity Ratio",
+        0.0, 3.0,
+        default_de_ratios.get(selected_country, 0.8),
+        0.1
+    )
+    
+    # Allow user to adjust cost of debt spread
+    debt_spread = st.sidebar.slider(
+        f"{selected_country} Cost of Debt Spread over Rf (%)",
+        0.0, 10.0,
+        cost_of_debt_spreads.get(selected_country, 2.5),
+        0.5
+    )
+    
+    # Calculate WACC components
+    # Cost of Equity = Rf + Beta * MRP + CRP
+    # Assuming Beta = 1.0 for market proxy
+    beta = 1.0
+    cost_of_equity = risk_free_rate + beta * market_risk_premium + crp
+    
+    # Cost of Debt = Rf + Spread
+    cost_of_debt = risk_free_rate + debt_spread
+    
+    # Weights
+    equity_weight = 1 / (1 + de_ratio)
+    debt_weight = de_ratio / (1 + de_ratio)
+    
+    # WACC = (E/V) * Re + (D/V) * Rd * (1-T)
+    wacc = equity_weight * cost_of_equity + debt_weight * cost_of_debt * (1 - tax_rate/100)
+    
+    # Display WACC Results
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Cost of Equity (Re)", f"{cost_of_equity:.2f}%")
+    with col2:
+        st.metric("Cost of Debt (Rd)", f"{cost_of_debt:.2f}%")
+    with col3:
+        st.metric("After-Tax Cost of Debt", f"{cost_of_debt * (1 - tax_rate/100):.2f}%")
+    with col4:
+        st.metric("WACC", f"{wacc:.2f}%", delta=f"{wacc - risk_free_rate:.2f}% vs Rf")
+    
+    st.markdown("---")
+    
+    # Detailed breakdown
+    st.subheader("📊 WACC Component Breakdown")
+    
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        st.markdown("**Capital Structure:**")
+        st.write(f"- **Equity Weight (E/V)**: {equity_weight:.2%}")
+        st.write(f"- **Debt Weight (D/V)**: {debt_weight:.2%}")
+        st.write(f"- **Debt/Equity Ratio**: {de_ratio:.2f}x")
+        
+    with col_b:
+        st.markdown("**Component Costs:**")
+        st.write(f"- **Risk-Free Rate**: {risk_free_rate:.2f}%")
+        st.write(f"- **Market Risk Premium**: {market_risk_premium:.2f}%")
+        st.write(f"- **Country Risk Premium**: {crp:.2f}%")
+        st.write(f"- **Beta Assumption**: {beta:.1f}")
+    
+    st.markdown("---")
+    
+    # WACC Formula visualization
+    st.subheader("📐 WACC Calculation Formula")
+    st.latex(r"""
+        \text{WACC} = \frac{E}{V} \times R_e + \frac{D}{V} \times R_d \times (1 - T_c)
+    """)
+    
+    st.markdown(f"""
+    Where:
+    - **E/V** = Equity Weight = {equity_weight:.2%}
+    - **D/V** = Debt Weight = {debt_weight:.2%}
+    - **Re** = Cost of Equity = {cost_of_equity:.2f}% (Rf + β×MRP + CRP)
+    - **Rd** = Cost of Debt = {cost_of_debt:.2f}% (Rf + Spread)
+    - **Tc** = Corporate Tax Rate = {tax_rate:.1f}%
+    """)
+    
+    # Historical WACC trend (if bond data available)
+    if bond_series is not None and not bond_series.empty:
+        st.subheader("📈 Implied Cost of Debt Trend")
+        
+        fig_wacc = go.Figure()
+        fig_wacc.add_trace(go.Scatter(
+            x=bond_series.index, 
+            y=bond_series.values,
+            mode='lines', 
+            name=f'{selected_country} 10Y Bond Yield (Cost of Debt Proxy)',
+            line=dict(color='green', width=2)
+        ))
+        
+        # Add current cost of debt estimate as horizontal line
+        fig_wacc.add_hline(
+            y=cost_of_debt, 
+            line_dash="dash", 
+            line_color="red",
+            annotation_text=f"Estimated Rd: {cost_of_debt:.2f}%"
+        )
+        
+        fig_wacc.update_layout(
+            title=f"{selected_country} - Market Implied Cost of Debt",
+            xaxis_title="Date",
+            yaxis_title="Yield (%)",
+            height=400
+        )
+        st.plotly_chart(fig_wacc, use_container_width=True)
+    
+    # Comparison across ASEAN countries
+    st.subheader("🌏 WACC Comparison Across ASEAN")
+    
+    wacc_comparison_data = []
+    for country, params in asean_countries.items():
+        country_crp = country_risk_premiums.get(country, 3.0)
+        country_de = default_de_ratios.get(country, 0.8)
+        country_spread = cost_of_debt_spreads.get(country, 2.5)
+        
+        coe = risk_free_rate + beta * market_risk_premium + country_crp
+        cod = risk_free_rate + country_spread
+        eq_w = 1 / (1 + country_de)
+        dt_w = country_de / (1 + country_de)
+        country_wacc = eq_w * coe + dt_w * cod * (1 - tax_rate/100)
+        
+        wacc_comparison_data.append({
+            'Country': country,
+            'Cost of Equity (%)': round(coe, 2),
+            'Cost of Debt (%)': round(cod, 2),
+            'WACC (%)': round(country_wacc, 2)
+        })
+    
+    wacc_df = pd.DataFrame(wacc_comparison_data)
+    st.dataframe(wacc_df.sort_values('WACC (%)'), use_container_width=True)
+    
+    # Export functionality
+    st.markdown("---")
+    if st.button("📥 Download WACC Analysis"):
+        csv = wacc_df.to_csv(index=False)
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name=f"wacc_analysis_{selected_country.replace(' ', '_').lower()}.csv",
+            mime="text/csv"
+        )
+
+# ==========================================
+# FOOTER & DATA REFRESH
 # ==========================================
 st.markdown("---")
 st.caption(f"Data refreshed: World Bank (Annual) | Market Data (Daily). Dashboard built with Python, Streamlit, and real APIs.")
