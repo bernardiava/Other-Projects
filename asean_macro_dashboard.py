@@ -23,7 +23,7 @@ tabs = st.tabs(["🌏 Macro Overview", "💰 WACC Proxy Calculator"])
 # TAB 1: MACRO OVERVIEW (Existing Functionality)
 # ==========================================
 with tabs[0]:
-    st.header("Fiscal Deficit & Current Account Analysis")
+    st.header("GDP Growth & Current Account Analysis")
     st.markdown("**Real Data from World Bank & Market Sources** | Built for ASEAN Economist Role")
     
     # ==========================================
@@ -122,13 +122,15 @@ with tabs[0]:
         "Vietnam": {"wb_code": "VNM", "bond_ticker": "VN10Y.GOV", "fx_ticker": "USDVND=X", "currency": "VND"}
     }
     
-    # World Bank Indicators - Using available indicators based on API testing (verified Dec 2024)
+    # World Bank Indicators - Using available indicators based on API testing (verified Nov 2026)
     CURRENT_ACCOUNT_IND = "BN.CAB.XOKA.GD.ZS"      # Current Account Balance (% of GDP) - ✓ Available for all ASEAN
     FISCAL_DEFICIT_IND = "NY.GDP.MKTP.KD.ZG"        # GDP Growth (annual %) - ✓ Available for all ASEAN
-    # Note: Original fiscal balance indicator (GC.BAL.CASH.GD.ZS) is archived/unavailable
-    # Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years
-    # Using GDP Growth as a key macroeconomic indicator alongside Current Account
-    # GDP growth reflects economic performance which is influenced by fiscal policy effectiveness
+    # Note: Original fiscal balance indicator (GC.DOD.TOTL.GD.ZS / GC.BAL.CASH.GD.ZS) is archived/unavailable.
+    # Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years.
+    # Using GDP Growth as a key macroeconomic indicator alongside Current Account.
+    # IMPORTANT: Despite the variable name FISCAL_DEFICIT_IND, this series is GDP GROWTH (annual %).
+    # It is displayed under "GDP Growth Analysis" and feeds the Executive Summary GDP commentary.
+    # GDP growth reflects economic performance which is influenced by fiscal policy effectiveness.
     
     # ==========================================
     # 3. SIDEBAR: COUNTRY SELECTION
@@ -138,10 +140,13 @@ with tabs[0]:
     country_data = asean_countries[selected_country]
     
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Data Sources:**")
-    st.sidebar.markdown("- World Bank API (Fiscal Deficit, Current Account)")
-    st.sidebar.markdown("- Yahoo Finance (Bond Yields, Exchange Rates)")
-    st.sidebar.markdown("- SARIMA Model for Forecast (Next 4 Quarters)")
+    st.sidebar.markdown("**Data Sources (Sumber Data / Keterangan):**")
+    st.sidebar.markdown("- World Bank API — GDP Growth (`NY.GDP.MKTP.KD.ZG`) & Current Account (`BN.CAB.XOKA.GD.ZS`), annual, cached 24h")
+    st.sidebar.markdown("- Yahoo Finance — Bond Yields & Exchange Rates, daily, cached 1h")
+    st.sidebar.markdown("- FX Forecast: SARIMA on monthly data (next 12 months)")
+    st.sidebar.markdown("- Current Account Forecast: SARIMA on annual data (next 4 years; shown as multi-year horizon — quarterly data unavailable from World Bank)")
+    # Note: the sidebar previously said "(Fiscal Deficit, Current Account)" and "Next 4 Quarters",
+    # which no longer matches the actual data sources/labels after the indicator swap to GDP Growth.
     
     # ==========================================
     # 4. MAIN DATA LOADING
@@ -208,7 +213,7 @@ with tabs[0]:
         # Align fiscal and current account data
         combined = pd.DataFrame(index=fiscal_df.index)
         # Use iloc[:, 0] since we're loading single country data and column is country name
-        combined['Fiscal Balance (% of GDP)'] = fiscal_df.iloc[:, 0]
+        combined['GDP Growth (Annual %)'] = fiscal_df.iloc[:, 0]
         combined['Current Account (% of GDP)'] = ca_df.iloc[:, 0]
         combined = combined.dropna()
         
@@ -216,7 +221,7 @@ with tabs[0]:
             # --- Forecast Logic (SARIMA) ---
             # We forecast using the Current Account, as it is the target for the job description
             
-            st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Quarters)")
+            st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Years)")
             
             # Fit SARIMA model on a proper annual PeriodIndex so the fitted
             # model can extend the index for forecasting. A plain integer
@@ -271,9 +276,9 @@ with tabs[0]:
             st.subheader(f"📈 {selected_country}: GDP Growth Analysis")
             
             fig2 = go.Figure()
-            fig2.add_trace(go.Bar(x=combined.index, y=combined['Fiscal Balance (% of GDP)'],
+            fig2.add_trace(go.Bar(x=combined.index, y=combined['GDP Growth (Annual %)'],
                                   name='GDP Growth (Annual %)',
-                                  marker_color=['green' if x > 0 else 'red' for x in combined['Fiscal Balance (% of GDP)']]))
+                                  marker_color=['green' if x > 0 else 'red' for x in combined['GDP Growth (Annual %)']]))
             fig2.add_hline(y=0, line_dash="dash", line_color="black")
             fig2.update_layout(title=f"{selected_country} Annual GDP Growth Rate",
                                xaxis_title="Year", yaxis_title="% Growth", height=400)
@@ -281,7 +286,7 @@ with tabs[0]:
             
             # --- Executive Summary (AI Commentary) ---
             st.subheader("📝 Executive Summary & Policy Insight")
-            latest_gdp_growth = combined['Fiscal Balance (% of GDP)'].iloc[-1]
+            latest_gdp_growth = combined['GDP Growth (Annual %)'].iloc[-1]
             latest_ca = combined['Current Account (% of GDP)'].iloc[-1]
             forecast_ca = forecast.iloc[-1]
             

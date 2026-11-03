@@ -87,11 +87,9 @@ A professional Streamlit dashboard for analyzing macroeconomic indicators across
 ### Forecasting Model
 
 - **Algorithm**: SARIMAX (Seasonal AutoRegressive Integrated Moving Average with eXogenous factors)
-- **Parameters**: 
-  - Order: (1,1,1)
-  - Seasonal Order: (1,1,1,4)
-- **Forecast Horizon**: 4 years ahead
-- **Note**: Uses annual data; quarterly indicators not available for all countries
+- **Current Account Forecast** (annual data): Order (1,1,1), Seasonal Order (1,1,1,4), horizon 4 years ahead. Data is reindexed onto a complete annual `PeriodIndex` so statsmodels can extend it out-of-sample.
+- **FX Rate Forecast** (Indonesia, USD/IDR): Daily Yahoo Finance data is resampled to month-end (`ME`) before fitting; Order (1,1,1), Seasonal Order (1,1,1,12), horizon 12 months ahead.
+- **Note**: Uses annual data for macro indicators; quarterly indicators are not available from the World Bank API for all countries.
 
 ### Caching Strategy
 
