@@ -1,0 +1,71 @@
+From 478bd3783ea3d3ddf40b4f217dd0e4de8c20166b Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Tue, 3 Nov 2026 23:50:24 +0000
+Subject: [PATCH 7/9] Rename legacy fiscal_df/FISCAL_DEFICIT_IND to
+ gdp_df/GDP_GROWTH_IND in ASEAN Macro Dashboard
+
+---
+ asean_macro_dashboard.py | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)
+
+diff --git a/asean_macro_dashboard.py b/asean_macro_dashboard.py
+index 1a7938f..9b20e99 100644
+--- a/asean_macro_dashboard.py
++++ b/asean_macro_dashboard.py
+@@ -124,13 +124,10 @@ with tabs[0]:
+     
+     # World Bank Indicators - Using available indicators based on API testing (verified Nov 2026)
+     CURRENT_ACCOUNT_IND = "BN.CAB.XOKA.GD.ZS"      # Current Account Balance (% of GDP) - ✓ Available for all ASEAN
+-    FISCAL_DEFICIT_IND = "NY.GDP.MKTP.KD.ZG"        # GDP Growth (annual %) - ✓ Available for all ASEAN
+-    # Note: Original fiscal balance indicator (GC.DOD.TOTL.GD.ZS / GC.BAL.CASH.GD.ZS) is archived/unavailable.
+-    # Most fiscal indicators (debt, expense, revenue) have missing data for IDN and VNM in recent years.
+-    # Using GDP Growth as a key macroeconomic indicator alongside Current Account.
+-    # IMPORTANT: Despite the variable name FISCAL_DEFICIT_IND, this series is GDP GROWTH (annual %).
+-    # It is displayed under "GDP Growth Analysis" and feeds the Executive Summary GDP commentary.
+-    # GDP growth reflects economic performance which is influenced by fiscal policy effectiveness.
++    GDP_GROWTH_IND = "NY.GDP.MKTP.KD.ZG"           # GDP Growth (annual %) - ✓ Available for all ASEAN
++    # Note: The original fiscal balance indicator (GC.DOD.TOTL.GD.ZS / GC.BAL.CASH.GD.ZS) is
++    # archived/unavailable, so GDP Growth replaced it. The legacy variable name
++    # "FISCAL_DEFICIT_IND" has been renamed to GDP_GROWTH_IND to match its actual content.
+     
+     # ==========================================
+     # 3. SIDEBAR: COUNTRY SELECTION
+@@ -145,15 +142,13 @@ with tabs[0]:
+     st.sidebar.markdown("- Yahoo Finance — Bond Yields & Exchange Rates, daily, cached 1h")
+     st.sidebar.markdown("- FX Forecast: SARIMA on monthly data (next 12 months)")
+     st.sidebar.markdown("- Current Account Forecast: SARIMA on annual data (next 4 years; shown as multi-year horizon — quarterly data unavailable from World Bank)")
+-    # Note: the sidebar previously said "(Fiscal Deficit, Current Account)" and "Next 4 Quarters",
+-    # which no longer matches the actual data sources/labels after the indicator swap to GDP Growth.
+     
+     # ==========================================
+     # 4. MAIN DATA LOADING
+     # ==========================================
+     with st.spinner(f"Loading real macroeconomic data for {selected_country}..."):
+-        # Load Fiscal & External Data
+-        fiscal_df = load_worldbank_data(FISCAL_DEFICIT_IND, [country_data["wb_code"]])
++        # Load GDP Growth & Current Account Data (World Bank)
++        gdp_df = load_worldbank_data(GDP_GROWTH_IND, [country_data["wb_code"]])
+         ca_df = load_worldbank_data(CURRENT_ACCOUNT_IND, [country_data["wb_code"]])
+         
+         # Load Market Sentiment Data
+@@ -207,13 +202,13 @@ with tabs[0]:
+     # ==========================================
+     # 5. VISUALIZATION & FORECASTING
+     # ==========================================
+-    if not fiscal_df.empty and not ca_df.empty:
++    if not gdp_df.empty and not ca_df.empty:
+         
+         # --- Prepare Data for Modeling ---
+-        # Align fiscal and current account data
+-        combined = pd.DataFrame(index=fiscal_df.index)
++        # Align GDP growth and current account data by year
++        combined = pd.DataFrame(index=gdp_df.index)
+         # Use iloc[:, 0] since we're loading single country data and column is country name
+-        combined['GDP Growth (Annual %)'] = fiscal_df.iloc[:, 0]
++        combined['GDP Growth (Annual %)'] = gdp_df.iloc[:, 0]
+         combined['Current Account (% of GDP)'] = ca_df.iloc[:, 0]
+         combined = combined.dropna()
+         
+-- 
+2.39.5
+

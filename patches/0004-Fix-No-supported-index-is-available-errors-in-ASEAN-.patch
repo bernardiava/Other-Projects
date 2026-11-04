@@ -1,0 +1,198 @@
+From 24860ee2e6e16f0d520e07a9e9f47116ac3c49f5 Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Tue, 3 Nov 2026 12:31:05 +0000
+Subject: [PATCH 4/9] Fix 'No supported index is available' errors in ASEAN
+ Macro Dashboard forecasts
+
+- Convert Current Account series to an annual PeriodIndex (new helper
+  make_forecastable_annual_series) before fitting SARIMAX; a plain integer
+  year Index has no frequency, so statsmodels could not extend it and
+  forecast() raised ValueError('No supported index is available.')
+- Resample daily FX data to month-end before fitting SARIMA(1,1,1)(1,1,1,12);
+  the seasonal period of 12 is only valid for monthly data, and ensures the
+  DatetimeIndex can be extended for the 12-month forecast
+- Flatten yfinance MultiIndex columns in get_market_data so Close is a Series
+- Add 4 regression tests (TestNoSupportedIndexFix): reproduce the original
+  failure, verify the fix, gap-filling behavior, and FX monthly resampling
+---
+ asean_macro_dashboard.py            | 53 ++++++++++++++++++----
+ tests/test_asean_macro_dashboard.py | 70 +++++++++++++++++++++++++++++
+ 2 files changed, 115 insertions(+), 8 deletions(-)
+
+diff --git a/asean_macro_dashboard.py b/asean_macro_dashboard.py
+index 284a8f4..bf3759e 100644
+--- a/asean_macro_dashboard.py
++++ b/asean_macro_dashboard.py
+@@ -85,9 +85,30 @@ with tabs[0]:
+         """Fetch bond yields / exchange rates as real-time economic indicators"""
+         try:
+             data = yf.download(ticker, period=period, progress=False)
+-            return data['Close']
++            close = data['Close']
++            # Flatten MultiIndex columns (newer yfinance returns (Price, Ticker) tuples)
++            if isinstance(close.columns, pd.MultiIndex):
++                close.columns = close.columns.get_level_values(0)
++            return close.iloc[:, 0] if hasattr(close, 'columns') else close
+         except:
+             return pd.Series()
++
++    def make_forecastable_annual_series(series):
++        """Convert a Series indexed by plain years into one with a proper
++        annual PeriodIndex so statsmodels can generate a forecast index.
++
++        Without this, SARIMAX.forecast() raises
++        ValueError('No supported index is available.') because a plain
++        integer Index has no frequency that statsmodels can extend.
++        Missing years are filled as NaN (handled by the state-space model).
++        """
++        years = [int(getattr(y, 'year', y)) for y in series.index]
++        full_index = pd.period_range(start=str(min(years)), end=str(max(years)), freq='Y')
++        aligned = series.copy()
++        aligned.index = pd.Index(years)
++        aligned = aligned.reindex(pd.Index([p.year for p in full_index])).astype(float)
++        aligned.index = full_index
++        return aligned
+     
+     # ==========================================
+     # 2. ASEAN COUNTRY CONFIGURATION
+@@ -138,8 +159,20 @@ with tabs[0]:
+         fx_prediction_df = None
+         if fx_series is not None and not fx_series.empty and len(fx_series) > 10:
+             try:
+-                # Fit SARIMA model on FX data
+-                fx_model = SARIMAX(fx_series.dropna(), 
++                fx_clean = fx_series.dropna()
++                # Ensure the index is a proper DatetimeIndex so statsmodels can
++                # extend it for forecasting (otherwise forecast() raises
++                # ValueError("No supported index is available.")).
++                if not isinstance(fx_clean.index, pd.DatetimeIndex):
++                    fx_clean.index = pd.to_datetime(fx_clean.index)
++
++                # Daily FX data cannot support a seasonal_order of (1,1,1,12)
++                # (that implies 12 observations per season, i.e. monthly data).
++                # Resample to month-end before fitting the SARIMA model.
++                fx_monthly = fx_clean.resample('ME').last().dropna()
++
++                # Fit SARIMA model on monthly FX data
++                fx_model = SARIMAX(fx_monthly, 
+                                   order=(1,1,1), 
+                                   seasonal_order=(1,1,1,12),
+                                   simple_differencing=False)
+@@ -150,7 +183,7 @@ with tabs[0]:
+                 fx_forecast = fx_model_fit.forecast(steps=fx_forecast_steps)
+                 
+                 # Create forecast index (monthly dates)
+-                last_date = fx_series.index[-1]
++                last_date = fx_monthly.index[-1]
+                 # Ensure last_date is a proper Timestamp
+                 if not isinstance(last_date, pd.Timestamp):
+                     last_date = pd.Timestamp(last_date)
+@@ -185,8 +218,12 @@ with tabs[0]:
+             
+             st.subheader(f"🔮 {selected_country}: Current Account Forecast (Next 4 Quarters)")
+             
+-            # Fit SARIMA model
+-            model = SARIMAX(combined['Current Account (% of GDP)'], 
++            # Fit SARIMA model on a proper annual PeriodIndex so the fitted
++            # model can extend the index for forecasting. A plain integer
++            # year Index has no frequency and causes statsmodels to raise
++            # ValueError("No supported index is available.") in forecast().
++            ca_series = make_forecastable_annual_series(combined['Current Account (% of GDP)'])
++            model = SARIMAX(ca_series, 
+                             order=(1,1,1), 
+                             seasonal_order=(1,1,1,4),
+                             simple_differencing=False)
+@@ -195,8 +232,8 @@ with tabs[0]:
+             # Make forecast
+             forecast_steps = 4
+             forecast = model_fit.forecast(steps=forecast_steps)
+-            # Create forecast index as future years (since data is annual)
+-            last_year = int(combined.index[-1])
++            # Forecast index: next 4 years after the last historical year
++            last_year = int(combined.index[-1] if not hasattr(combined.index[-1], 'year') else combined.index[-1].year)
+             forecast_index = [last_year + i for i in range(1, forecast_steps + 1)]
+             
+             # Create plot
+diff --git a/tests/test_asean_macro_dashboard.py b/tests/test_asean_macro_dashboard.py
+index a09e928..da920c2 100644
+--- a/tests/test_asean_macro_dashboard.py
++++ b/tests/test_asean_macro_dashboard.py
+@@ -243,5 +243,75 @@ class TestFXYearlyAggregation:
+                'Predicted Exchange Rate' in yearly_forecast.columns
+ 
+ 
++def make_forecastable_annual_series(series):
++    """Replica of the dashboard helper: convert plain-year-indexed series to
++    an annual PeriodIndex so statsmodels can extend it for forecasting."""
++    years = [int(getattr(y, 'year', y)) for y in series.index]
++    full_index = pd.period_range(start=str(min(years)), end=str(max(years)), freq='Y')
++    aligned = series.copy()
++    aligned.index = pd.Index(years)
++    aligned = aligned.reindex(pd.Index([p.year for p in full_index])).astype(float)
++    aligned.index = full_index
++    return aligned
++
++
++class TestNoSupportedIndexFix:
++    """Regression tests for ValueError('No supported index is available.')"""
++
++    def test_plain_int_index_forecast_fails_without_fix(self):
++        """A plain integer year index cannot be extended by statsmodels."""
++        from statsmodels.tsa.statespace.sarimax import SARIMAX
++        s = pd.Series(
++            np.random.randn(12).cumsum() / 10,
++            index=pd.Index([2010, 2011, 2012, 2013, 2014, 2016,
++                            2018, 2019, 2020, 2021, 2022, 2023])
++        )
++        model = SARIMAX(s, order=(1, 1, 1), seasonal_order=(1, 1, 1, 4),
++                        simple_differencing=False).fit(disp=False)
++        with pytest.raises(ValueError, match="No supported index"):
++            model.forecast(steps=4)
++
++    def test_period_index_forecast_succeeds_with_fix(self):
++        """After converting to an annual PeriodIndex, forecast works."""
++        from statsmodels.tsa.statespace.sarimax import SARIMAX
++        s = pd.Series(
++            np.random.randn(12).cumsum() / 10,
++            index=pd.Index([2010, 2011, 2012, 2013, 2014, 2016,
++                            2018, 2019, 2020, 2021, 2022, 2023])
++        )
++        ca = make_forecastable_annual_series(s)
++        model = SARIMAX(ca, order=(1, 1, 1), seasonal_order=(1, 1, 1, 4),
++                        simple_differencing=False).fit(disp=False)
++        forecast = model.forecast(steps=4)
++        assert len(forecast) == 4
++        # Forecast periods extend beyond the last historical year (2023)
++        assert [p.year for p in forecast.index] == [2024, 2025, 2026, 2027]
++
++    def test_make_forecastable_annual_series_fills_gaps(self):
++        """Missing years become NaN entries on a complete annual grid."""
++        s = pd.Series([1.0, 2.0, 3.0], index=pd.Index([2010, 2012, 2013]))
++        out = make_forecastable_annual_series(s)
++        assert isinstance(out.index, pd.PeriodIndex)
++        assert len(out) == 4          # 2010..2013 inclusive
++        assert out.isna().sum() == 1  # 2011 gap filled as NaN
++        assert out.iloc[0] == 1.0 and out.iloc[-1] == 3.0
++
++    def test_fx_daily_resampled_to_monthly_supports_seasonal_forecast(self):
++        """Daily FX resampled to month-end allows SARIMA(1,1,1)(1,1,1,12) forecast."""
++        from statsmodels.tsa.statespace.sarimax import SARIMAX
++        rng = np.random.default_rng(42)
++        daily = pd.Series(
++            15000 + np.cumsum(rng.normal(0, 10, 800)),
++            index=pd.date_range('2024-01-01', periods=800, freq='B')
++        )
++        monthly = daily.resample('ME').last().dropna()
++        model = SARIMAX(monthly, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12),
++                        simple_differencing=False).fit(disp=False)
++        forecast = model.forecast(steps=12)
++        assert len(forecast) == 12
++        # First forecast month follows the last observed month-end
++        expected_start = monthly.index[-1] + pd.DateOffset(months=1)
++        assert forecast.index[0] == expected_start
++
+ if __name__ == '__main__':
+     pytest.main([__file__, '-v'])
+-- 
+2.39.5
+
